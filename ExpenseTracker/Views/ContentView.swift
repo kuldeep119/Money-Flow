@@ -11,7 +11,7 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) var context
     @State private var isShowing = false
-    
+    @State private var updateExpense : Expense?
     @Query(sort: \Expense.Date) var expenses: [Expense]
 
     var body: some View {
@@ -19,6 +19,9 @@ struct ContentView: View {
             List {
                 ForEach(expenses) { expense in
                     ExpenseCell(expense: expense)
+                        .onTapGesture {
+                        updateExpense = expense
+                    }
                 }
                 .onDelete(perform: delete)
             }
@@ -40,6 +43,9 @@ struct ContentView: View {
             .sheet(isPresented: $isShowing) {
                 AddExpense()
             }
+            .sheet(item: $updateExpense, content: { expense in
+                UpdateExpense(expense: expense)
+            })
             .overlay {
                 if expenses.isEmpty {
                     ContentUnavailableView {
