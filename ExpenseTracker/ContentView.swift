@@ -9,29 +9,49 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Environment(\.modelContext) var context
+    @State private var isShowing = false
+    
+    @Query(sort: \Expense.Date) var expenses: [Expense]
 
     var body: some View {
         NavigationSplitView {
             List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
+                ForEach(expenses) { expense in
+                    ExpenseCell(expense: expense)
                 }
-                .onDelete(perform: deleteItems)
+                .onDelete(perform: delete)
             }
+            .navigationTitle("Expenses")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                if !expenses.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        EditButton()
                     }
+                    ToolbarItem {
+                        Button {
+                            isShowing = true
+                        } label: {
+                            Label("Add Expense", systemImage: "plus")
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $isShowing) {
+                AddExpense()
+            }
+            .overlay {
+                if expenses.isEmpty {
+                    ContentUnavailableView {
+                        Label("No Expenses", systemImage: "list.bullet.rectangle.portrait")
+                    } description: {
+                        Text("Start adding expenses to see your expense list.")
+                    } actions: {
+                        Button("Add Expense") {
+                            isShowing = true
+                        }
+                    }
+                    .offset(y: -60)
                 }
             }
         } detail: {
@@ -39,23 +59,31 @@ struct ContentView: View {
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
+    private func delete(offsets: IndexSet) {
         withAnimation {
             for index in offsets {
-                modelContext.delete(items[index])
+                context.delete(expenses[index])
             }
+            
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(for: Expense.self, inMemory: true)
+}
+
+struct ExpenseCell : View {
+    let expense:Expense
+    @AppStorage("selectedCurrency") private var selectedCurrency: String = "INR"
+    var body: some View {
+        HStack{
+            Text(expense.Date, format: .dateTime.month(.abbreviated))
+                .frame(width: 70,alignment: .leading)
+            Text(expense.name)
+            Spacer()
+            Text(expense.value, format: .currency(code: selectedCurrency))
+        }
+    }
 }
